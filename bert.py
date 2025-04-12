@@ -19,29 +19,26 @@ default_model_name = "google/bert_uncased_L-2_H-128_A-2"
 def default_tokenizer():
     return BertTokenizer.from_pretrained(default_model_name)
 
+
 def tokenization_options():
     return {
         "padding": "max_length",
         # Some lines do have >512 tokens, and 512 is the maximum size for BERT input.
         "max_length": 512,
         "truncation": True,
-        "return_tensors":"pt",
-        "is_split_into_words":True,
+        "return_tensors": "pt",
+        "is_split_into_words": True,
     }
 
+
 def tokenize(tokenizer, input):
-    return tokenizer(
-        input,
-        **tokenization_options()
-    )
+    return tokenizer(input, **tokenization_options())
 
 
 # Converts the given script into a tokenized representation.
 def tokenize_split_script_batched(tokenizer, split_script):
     # return tokenize(tokenizer, split_script)
-    return tokenizer.batch_encode_plus(split_script,
-        **tokenization_options()
-)
+    return tokenizer.batch_encode_plus(split_script, **tokenization_options())
 
 
 # Converts each line of the given script into a tokenized representation.
@@ -110,6 +107,7 @@ def embeddings_for_tokenized_chunks(model, tokenized_chunks):
         assert embedding.shape == embedding_shape
     return embeddings
 
+
 # Gets or computes the bert embeddings. If cache_eligible is True, then
 # this function may read the embeddings off of the local disk.
 def embeddings_for_transcripts(cache_eligible):
@@ -144,11 +142,9 @@ def embeddings_for_transcripts(cache_eligible):
     if embeddings is None:
         print("Somehow failed to generate embeddings!")
         raise Exception
-    
+
     # Concatenate the embeddings for each line, if necessary.
-    flattened_embeddings = [
-        torch.flatten(embedding) for embedding in embeddings
-    ]
+    flattened_embeddings = [torch.flatten(embedding) for embedding in embeddings]
 
     torch.save(flattened_embeddings, cache_location)
     return flattened_embeddings
