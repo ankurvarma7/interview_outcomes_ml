@@ -195,4 +195,4 @@ def compare_learning_rates():
     best_loss_idx = np.argmin(losses)
     return rates_to_compare[best_loss_idx], losses[best_loss_idx]
 
-
+# Best appears to be 3e-5.
