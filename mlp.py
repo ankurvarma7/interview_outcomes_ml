@@ -14,14 +14,18 @@ import torch.optim as optim
 class MLPHyperParameters:
     def __init__(
         self,
+        k,
+        summarize_bert_features,
         learning_rate,
         num_epochs,
         regularization_constant,
         hidden_layer_sizes,
-        dropout,
+        dropout_probability,
     ):
+        self.k = k
+        self.summarize_bert_features = summarize_bert_features
         self.hidden_layer_sizes = hidden_layer_sizes
-        self.dropout = dropout
+        self.dropout_probability = dropout_probability
         self.learning_rate = learning_rate
         self.num_epochs = num_epochs
         self.regularization_constant = regularization_constant
@@ -115,17 +119,17 @@ def train_and_report(
 
 # A feedforward net with leaky ReLU activations. If `dropout` is true, then dropout layers will be added between
 # all intermediate layers.
-def ff_leaky_relu_model(hidden_layer_sizes, input_size, dropout):
+def ff_leaky_relu_model(hidden_layer_sizes, input_size, dropout_probability):
     args = [nn.Linear(input_size, hidden_layer_sizes[0]), nn.LeakyReLU()]
-    if dropout:
-        args.append(nn.Dropout(0.1))
+    if dropout_probability > 0:
+        args.append(nn.Dropout(dropout_probability))
     for i in range(len(hidden_layer_sizes) - 1):
         args += [
             nn.Linear(hidden_layer_sizes[i], hidden_layer_sizes[i + 1]),
             nn.LeakyReLU(),
         ]
-        if dropout:
-            args.append(nn.Dropout(0.1))
+        if dropout_probability > 0:
+            args.append(nn.Dropout(dropout_probability))
     args.append(nn.Linear(hidden_layer_sizes[-1], 2))
     return nn.Sequential(*args)
 
@@ -147,13 +151,19 @@ def evaluate_with_hyperparameters(hps: MLPHyperParameters):
             for participant in participant_set
         ]
         training_data_loader = torch.utils.data.DataLoader(
-            features.dataset_for_participants(training_participants, False)
+            features.dataset_for_participants(
+                training_participants, False, hps.summarize_bert_features, hps.k
+            )
         )
         validation_data_loader = torch.utils.data.DataLoader(
-            features.dataset_for_participants(validation_participants, False)
+            features.dataset_for_participants(
+                validation_participants, False, hps.summarize_bert_features, hps.k
+            )
         )
         input_size = next(iter(training_data_loader))[0].shape[1]
-        model = ff_leaky_relu_model(hps.hidden_layer_sizes, input_size, hps.dropout)
+        model = ff_leaky_relu_model(
+            hps.hidden_layer_sizes, input_size, hps.dropout_probability
+        )
         training_loss, validation_loss = train_and_report(
             model,
             training_data_loader,
@@ -176,16 +186,19 @@ def evaluate_with_hyperparameters(hps: MLPHyperParameters):
 # by tuning the learning rate.
 def initial_hps_guess_with_learning_rate(learning_rate):
     return MLPHyperParameters(
+        k=17,
+        summarize_bert_features=True,
         learning_rate=learning_rate,
         num_epochs=30,
         regularization_constant=0,
-        hidden_layer_sizes=[512, 64, 16],
-        dropout=True,
+        hidden_layer_sizes=[2048, 256, 32],
+        dropout_probability=0.1,
     )
+
 
 # Searches for the best learning rate.
 def compare_learning_rates():
-    rates_to_compare = [5e-6, 1e-5, 3e-5, 5e-5, 1e-4]
+    rates_to_compare = [1e-5, 3e-5, 5e-5, 1e-4]
     losses = [
         evaluate_with_hyperparameters(
             initial_hps_guess_with_learning_rate(learning_rate)
@@ -195,4 +208,7 @@ def compare_learning_rates():
     best_loss_idx = np.argmin(losses)
     return rates_to_compare[best_loss_idx], losses[best_loss_idx]
 
+
 # Best appears to be 3e-5.
+
+compare_learning_rates()
