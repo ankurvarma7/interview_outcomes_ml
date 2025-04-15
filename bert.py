@@ -109,9 +109,13 @@ def embeddings_for_tokenized_chunks(model, tokenized_chunks):
 
 
 # Gets or computes the bert embeddings. If cache_eligible is True, then
-# this function may read the embeddings off of the local disk.
-def embeddings_for_transcripts(cache_eligible):
-    cache_location = "bert_embeddings.pt"
+# this function may read the embeddings off of the local disk. If summary is True,
+# then this function will return the sum and average of the embeddings across all the
+# lines for each transcript, instead of concatenating them.
+def embeddings_for_transcripts(cache_eligible, summary):
+    cache_location = (
+        "bert_embeddings_summarized.pt" if summary else "bert_embeddings.pt"
+    )
     model_name = default_model_name
     if cache_eligible:
         try:
@@ -143,8 +147,15 @@ def embeddings_for_transcripts(cache_eligible):
         print("Somehow failed to generate embeddings!")
         raise Exception
 
-    # Concatenate the embeddings for each line, if necessary.
-    flattened_embeddings = [torch.flatten(embedding) for embedding in embeddings]
+    # Concatenate or summarize the embeddings for each line.
+    flattened_embeddings = []
+    if summary:
+        flattened_embeddings = [
+            torch.cat((torch.mean(embedding, dim=0), torch.sum(embedding, dim=0)))
+            for embedding in embeddings
+        ]
+    else:
+        flattened_embeddings = [torch.flatten(embedding) for embedding in embeddings]
 
     torch.save(flattened_embeddings, cache_location)
     return flattened_embeddings.float()
