@@ -147,7 +147,7 @@ def embeddings_for_transcripts(cache_eligible):
     flattened_embeddings = [torch.flatten(embedding) for embedding in embeddings]
 
     torch.save(flattened_embeddings, cache_location)
-    return flattened_embeddings
+    return flattened_embeddings.float()
 
 
 ### --- SECTION: Statistics and exploration ---
