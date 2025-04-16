@@ -67,13 +67,13 @@ def plot_losses(train_losses_by_epoch, validation_losses_by_epoch):
         range(len(train_losses_by_epoch)),
         train_losses_by_epoch,
         s=9,
-        label="Training loss",
+        label="Training loss (dropout applied)",
     )
     plt.scatter(
         range(len(validation_losses_by_epoch)),
         validation_losses_by_epoch,
         s=9,
-        label="Validation loss",
+        label="Validation loss (no dropout)",
     )
     plt.xlabel("Training epoch")
     plt.ylabel("Loss")
@@ -209,6 +209,59 @@ def compare_learning_rates():
     return rates_to_compare[best_loss_idx], losses[best_loss_idx]
 
 
+# compare_learning_rates()
 # Best appears to be 3e-5.
 
-compare_learning_rates()
+
+# The start of hyperparameter optimzation. Reasonable guesses for everything; we'll start
+# by tuning the learning rate.
+def hps_guess_1_with_summarize_bert(summarize_bert):
+    return MLPHyperParameters(
+        k=17,
+        summarize_bert_features=summarize_bert,
+        learning_rate=3e-5,
+        num_epochs=30,
+        regularization_constant=0,
+        hidden_layer_sizes=[2048, 256, 32],
+        dropout_probability=0.1,
+    )
+
+
+def compare_bert_summarization():
+    values_to_compare = [False, True]
+    losses = [
+        evaluate_with_hyperparameters(hps_guess_1_with_summarize_bert(value))
+        for value in values_to_compare
+    ]
+    best_loss_idx = np.argmin(losses)
+    return values_to_compare[best_loss_idx], losses[best_loss_idx]
+
+
+# Summarizing / aggregating works better
+
+
+def hps_guess_2_with_hidden_layers(hidden_layers):
+    return MLPHyperParameters(
+        k=17,
+        summarize_bert_features=True,
+        learning_rate=3e-5,
+        num_epochs=30,
+        regularization_constant=0,
+        hidden_layer_sizes=hidden_layers,
+        dropout_probability=0.1,
+    )
+
+def compare_hidden_layers():
+    values_to_compare = [
+        [2048, 1024, 32],
+        [2048, 2048, 16],
+        [4096, 512, 32],
+    ]
+    losses = [
+        evaluate_with_hyperparameters(hps_guess_2_with_hidden_layers(value))
+        for value in values_to_compare
+    ]
+    best_loss_idx = np.argmin(losses)
+    return values_to_compare[best_loss_idx], losses[best_loss_idx]
+
+# Best so far: [4096, 512, 32]
