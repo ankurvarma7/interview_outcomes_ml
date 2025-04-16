@@ -2,6 +2,9 @@ import pdb
 import ollama
 from transformers import AutoTokenizer
 import pandas as pd
+from test_train_sets import *
+from evaluate import evaluate
+import numpy as np
 
 # You must have ollama installed and have pulled the llama3.
 # install ollama from the website
@@ -46,7 +49,7 @@ def prompt_examples_performance(transcript):
     )
 
 
-def prompt_simple_excitement(transcript):
+def prompt_simple_excitment(transcript):
     return (
         "Here is an interview transcript: "
         "==================="
@@ -86,23 +89,78 @@ def validate_score(score):
     return True
 
 
-def llama3_score(prompt):
-    score = ollama.generate(model="llama3", prompt=prompt)["response"]
+def llama3_score(prompt, model="llama3.2"):
+    score = ollama.generate(model=model, prompt=prompt)["response"]
     if validate_score(score):
         return int(score)
     else:
-        raise Exception("Invalid Score")
+        raise Exception(f"Invalid Score {score}")
 
 
-transcripts_df = pd.read_csv(
-    "MITInterview/transcripts.csv", names=["Participant", "transcript"]
-)
-score_df = pd.read_csv("MITInterview/scores.csv")
-merged_df = pd.merge(transcripts_df, score_df, on="Participant")
+if __name__ == "__main__":
+    # train_set = get_train_set(0) + get_train_set(1) + get_train_set(2)
+    # val_set = get_train_set(3)
+    models = ["llama3", "llama3.2"]
+    prompts = ["simple", "examples"]
+    test_set = get_test_set()
+    transcripts_df = pd.read_csv("transcripts.csv", names=["Participant", "transcript"])
+    score_df = pd.read_csv("scores.csv")
+    merged_df = pd.merge(transcripts_df, score_df, on="Participant")
 
-for index, row in merged_df.iterrows():
-    prompt_performance = prompt_examples_performance(row["transcript"])
-    prompt_excitment = prompt_examples_excitment(row["transcript"])
-    performance_score = llama3_score(prompt_performance)
-    excitment_score = llama3_score(prompt_excitment)
-    print(f"Performance: {performance_score}, Excitment: {excitment_score}")
+    for m in models:
+        for p in prompts:
+            overall_y_trues = []
+            excitment_y_trues = []
+            overall_y_preds = []
+            excitment_y_preds = []
+            overall_fails = 0
+            excitment_fails = 0
+
+            for p_id in test_set:
+                transcript = merged_df[merged_df["Participant"] == p_id][
+                    "transcript"
+                ].iloc[0]
+
+                try:
+                    overall_y_true = merged_df[merged_df["Participant"] == p_id][
+                        "Overall"
+                    ].iloc[0]
+                    if p == "simple":
+                        prompt_performance = prompt_simple_performance(transcript)
+                    else:
+                        prompt_performance = prompt_examples_performance(transcript)
+                    overall_y_pred = llama3_score(prompt_performance, m)
+                    overall_y_trues.append(overall_y_true)
+                    overall_y_preds.append(overall_y_pred)
+                    print(
+                        f"Predicted Performance: {overall_y_pred}, True Performance: {overall_y_true}"
+                    )
+
+                except:
+                    overall_fails += 1
+
+                try:
+                    excitment_y_true = merged_df[merged_df["Participant"] == p_id][
+                        "Excited"
+                    ].iloc[0]
+                    if p == "simple":
+                        prompt_excitment = prompt_simple_excitment(transcript)
+                    else:
+                        prompt_excitment = prompt_examples_excitment(transcript)
+
+                    excitment_y_pred = llama3_score(prompt_excitment, m)
+                    excitment_y_trues.append(excitment_y_true)
+                    excitment_y_preds.append(excitment_y_pred)
+                    print(
+                        f"Predicted Excitment: {excitment_y_pred}, True Excitment: {excitment_y_true}"
+                    )
+
+                except:
+                    excitment_fails += 1
+
+            print(f"Evaluation of Overall with {m} and prompt {p}")
+            evaluate(np.array(overall_y_trues), np.array(overall_y_preds))
+            print(f"Evaluation of Excitment with {m} and prompt {p}")
+            evaluate(np.array(excitment_y_trues), np.array(excitment_y_preds))
+            print(f"Overall fails: {overall_fails}, Excitment fails: {excitment_fails}")
+            print()
