@@ -9,8 +9,8 @@ from torch.utils.data import TensorDataset
 transcript_df = pd.read_csv("transcripts.csv", names=["Participant", "transcript"])
 outcome_df = pd.read_csv("scores.csv", names=["Participant", "Overall", "Excited"])
 
-variance = outcome_df.iloc[1:]["Excited"].astype("float").mean()
-print(variance)
+# variance = outcome_df.iloc[1:]["Excited"].astype("float").mean()
+# print(variance)
 
 
 def row_index_for_participant_id(participant_id):
