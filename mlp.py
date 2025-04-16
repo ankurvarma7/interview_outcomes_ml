@@ -264,4 +264,4 @@ def compare_hidden_layers():
     best_loss_idx = np.argmin(losses)
     return values_to_compare[best_loss_idx], losses[best_loss_idx]
 
-# Best so far: [2048, 1024, 32]
+# Best so far: [4096, 512, 32]
