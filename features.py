@@ -13,6 +13,7 @@ outcome_df = pd.read_csv("scores.csv", names=["Participant", "Overall", "Excited
 # print(variance)
 
 
+
 def row_index_for_participant_id(participant_id):
     return transcript_df.loc[transcript_df["Participant"] == participant_id].index[0]
 
