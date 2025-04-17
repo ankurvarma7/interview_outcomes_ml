@@ -1,3 +1,4 @@
+import evaluate
 import features
 import matplotlib.pyplot as plt
 import numpy as np
@@ -18,7 +19,6 @@ class MLPHyperParameters:
         summarize_bert_features,
         learning_rate,
         num_epochs,
-        regularization_constant,
         hidden_layer_sizes,
         dropout_probability,
     ):
@@ -28,7 +28,6 @@ class MLPHyperParameters:
         self.dropout_probability = dropout_probability
         self.learning_rate = learning_rate
         self.num_epochs = num_epochs
-        self.regularization_constant = regularization_constant
 
 
 # Does one full iteration of training over the data in training_data_loader, updating
@@ -92,12 +91,11 @@ def train_and_report(
     validation_data_loader,
     num_epochs,
     learning_rate,
-    weight_decay,
 ):
     train_losses_by_epoch = []
     validation_losses_by_epoch = []
     optimizer = optim.Adam(
-        model.parameters(), lr=learning_rate, weight_decay=weight_decay
+        model.parameters(), lr=learning_rate, weight_decay=0
     )
     loss_function = nn.MSELoss()
     start_time = time.time()
@@ -170,7 +168,6 @@ def evaluate_with_hyperparameters(hps: MLPHyperParameters):
             validation_data_loader,
             hps.num_epochs,
             hps.learning_rate,
-            hps.regularization_constant,
         )
         training_losses.append(training_loss)
         validation_losses.append(validation_loss)
@@ -190,7 +187,6 @@ def initial_hps_guess_with_learning_rate(learning_rate):
         summarize_bert_features=True,
         learning_rate=learning_rate,
         num_epochs=30,
-        regularization_constant=0,
         hidden_layer_sizes=[2048, 256, 32],
         dropout_probability=0.1,
     )
@@ -221,7 +217,6 @@ def hps_guess_1_with_summarize_bert(summarize_bert):
         summarize_bert_features=summarize_bert,
         learning_rate=3e-5,
         num_epochs=30,
-        regularization_constant=0,
         hidden_layer_sizes=[2048, 256, 32],
         dropout_probability=0.1,
     )
@@ -246,15 +241,13 @@ def hps_guess_2_with_hidden_layers(hidden_layers):
         summarize_bert_features=True,
         learning_rate=3e-5,
         num_epochs=30,
-        regularization_constant=0,
         hidden_layer_sizes=hidden_layers,
         dropout_probability=0.1,
     )
 
+
 def compare_hidden_layers():
     values_to_compare = [
-        [2048, 1024, 32],
-        [2048, 2048, 16],
         [4096, 512, 32],
     ]
     losses = [
@@ -264,4 +257,115 @@ def compare_hidden_layers():
     best_loss_idx = np.argmin(losses)
     return values_to_compare[best_loss_idx], losses[best_loss_idx]
 
+
 # Best so far: [4096, 512, 32]
+
+
+def hps_guess_3_with_dropout_probability(dropout_probability):
+    return MLPHyperParameters(
+        k=17,
+        summarize_bert_features=True,
+        learning_rate=3e-5,
+        num_epochs=50,
+        hidden_layer_sizes=[4096, 512, 32],
+        dropout_probability=dropout_probability,
+    )
+
+
+def compare_dropout_probabilities():
+    values_to_compare = [0.05, 0.1, 0.2, 0.3]
+    losses = [
+        evaluate_with_hyperparameters(hps_guess_3_with_dropout_probability(value))
+        for value in values_to_compare
+    ]
+    best_loss_idx = np.argmin(losses)
+    return values_to_compare[best_loss_idx], losses[best_loss_idx]
+
+
+def hps_guess_4_with_epochs(num_epochs):
+    return MLPHyperParameters(
+        k=17,
+        summarize_bert_features=True,
+        learning_rate=3e-5,
+        num_epochs=num_epochs,
+        hidden_layer_sizes=[4096, 512, 32],
+        dropout_probability=0.2,
+    )
+
+
+def compare_epochs():
+    values_to_compare = [50, 100, 150, 200]
+    losses = [
+        evaluate_with_hyperparameters(hps_guess_4_with_epochs(value))
+        for value in values_to_compare
+    ]
+    best_loss_idx = np.argmin(losses)
+    return (
+        values_to_compare[best_loss_idx],
+        losses[best_loss_idx],
+        values_to_compare,
+        losses,
+    )
+
+def tuned_hps(k):
+    return MLPHyperParameters(
+        k=k,
+        summarize_bert_features=True,
+        learning_rate=3e-5,
+        num_epochs=100,
+        hidden_layer_sizes=[4096, 512, 32],
+        dropout_probability=0.2,
+    )
+
+
+def train_and_infer_against_test_set(hps):
+    test_participants = test_train_sets.get_test_set()
+    training_participants = [
+        participant
+        for participant_set in [
+            test_train_sets.get_train_set(i)
+            for i in [0, 1, 2, 3]
+        ]
+        for participant in participant_set
+    ]
+
+    training_data_loader = torch.utils.data.DataLoader(
+        features.dataset_for_participants(
+            training_participants, False, hps.summarize_bert_features, hps.k
+        )
+    )
+    test_data_loader = torch.utils.data.DataLoader(
+        features.dataset_for_participants(
+            test_participants, False, hps.summarize_bert_features, hps.k
+        )
+    )
+    input_size = next(iter(training_data_loader))[0].shape[1]
+    model = ff_leaky_relu_model(
+        hps.hidden_layer_sizes, input_size, hps.dropout_probability
+    )
+    _, _ = train_and_report(
+        model,
+        training_data_loader,
+        test_data_loader,
+        hps.num_epochs,
+        hps.learning_rate,
+    )
+    model.eval()
+    labels_and_predictions = []
+    for test_samples, test_labels in test_data_loader:
+        predictions = model(test_samples)
+        labels_and_predictions.append((test_labels, predictions))
+        # evaluate.evaluate(test_labels, predictions)
+    return labels_and_predictions
+
+def evaluate_test_inference(labels_and_preds):
+    labels = [combined[0] for combined in labels_and_preds]
+    preds = [combined[1] for combined in labels_and_preds]
+    overall_labels = [label.numpy()[0][0] for label in labels]
+    excitement_labels = [label.numpy()[0][1] for label in labels]
+    overall_preds = [pred[0].detach().numpy()[0] for pred in preds]
+    excitement_preds = [pred[0].detach().numpy()[1] for pred in preds]
+    print("MLP overall evaluation: ")
+    evaluate.evaluate(np.array(overall_preds), np.array(overall_labels))
+    print("MLP excitement evaluation: ")
+    evaluate.evaluate(np.array(excitement_preds), np.array(excitement_labels))
