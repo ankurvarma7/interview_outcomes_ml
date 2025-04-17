@@ -1,3 +1,4 @@
+import evaluate
 import features
 import matplotlib.pyplot as plt
 import numpy as np
@@ -305,3 +306,66 @@ def compare_epochs():
         values_to_compare,
         losses,
     )
+
+def tuned_hps(k):
+    return MLPHyperParameters(
+        k=k,
+        summarize_bert_features=True,
+        learning_rate=3e-5,
+        num_epochs=100,
+        hidden_layer_sizes=[4096, 512, 32],
+        dropout_probability=0.2,
+    )
+
+
+def train_and_infer_against_test_set(hps):
+    test_participants = test_train_sets.get_test_set()
+    training_participants = [
+        participant
+        for participant_set in [
+            test_train_sets.get_train_set(i)
+            for i in [0, 1, 2, 3]
+        ]
+        for participant in participant_set
+    ]
+
+    training_data_loader = torch.utils.data.DataLoader(
+        features.dataset_for_participants(
+            training_participants, False, hps.summarize_bert_features, hps.k
+        )
+    )
+    test_data_loader = torch.utils.data.DataLoader(
+        features.dataset_for_participants(
+            test_participants, False, hps.summarize_bert_features, hps.k
+        )
+    )
+    input_size = next(iter(training_data_loader))[0].shape[1]
+    model = ff_leaky_relu_model(
+        hps.hidden_layer_sizes, input_size, hps.dropout_probability
+    )
+    _, _ = train_and_report(
+        model,
+        training_data_loader,
+        test_data_loader,
+        hps.num_epochs,
+        hps.learning_rate,
+    )
+    model.eval()
+    labels_and_predictions = []
+    for test_samples, test_labels in test_data_loader:
+        predictions = model(test_samples)
+        labels_and_predictions.append((test_labels, predictions))
+        # evaluate.evaluate(test_labels, predictions)
+    return labels_and_predictions
+
+def evaluate_test_inference(labels_and_preds):
+    labels = [combined[0] for combined in labels_and_preds]
+    preds = [combined[1] for combined in labels_and_preds]
+    overall_labels = [label.numpy()[0][0] for label in labels]
+    excitement_labels = [label.numpy()[0][1] for label in labels]
+    overall_preds = [pred[0].detach().numpy()[0] for pred in preds]
+    excitement_preds = [pred[0].detach().numpy()[1] for pred in preds]
+    print("MLP overall evaluation: ")
+    evaluate.evaluate(np.array(overall_preds), np.array(overall_labels))
+    print("MLP excitement evaluation: ")
+    evaluate.evaluate(np.array(excitement_preds), np.array(excitement_labels))
