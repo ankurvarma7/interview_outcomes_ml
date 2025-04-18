@@ -94,6 +94,43 @@ if __name__ == "__main__":
     val_set = get_train_set(3)
     test_set = get_test_set()
 
+    #################### Training #######################
+    # All of the commented out code is for tunning k and training
+    # (
+    #     bert_embeddings_train,
+    #     _,
+    #     _,
+    #     _,
+    #     _,
+    #     _,
+    #     _,
+    #     _,
+    #     _,
+    #     overall_scores_train,
+    #     excitment_scores_train,
+    # ) = get_set(train_set)
+    # (
+    #     bert_embeddings_val,
+    #     _,
+    #     _,
+    #     _,
+    #     _,
+    #     _,
+    #     _,
+    #     _,
+    #     _,
+    #     overall_scores_val,
+    #     excitment_scores_val,
+    # ) = get_set(val_set)
+
+    # print(f"Bert Overall")
+    # model = train_model(bert_embeddings_train, overall_scores_train)
+    # evaluate_model(model, bert_embeddings_val, overall_scores_val)
+
+    # print(f"Bert Excited")
+    # model = train_model(bert_embeddings_train, excitment_scores_train)
+    # evaluate_model(model, bert_embeddings_val, excitment_scores_val)
+
     for k in num_features:
         pass
         # (
@@ -122,14 +159,6 @@ if __name__ == "__main__":
         #     overall_scores_val,
         #     excitment_scores_val,
         # ) = get_set(val_set, k)
-
-        # print(f"Bert Overall {k}")
-        # model = train_model(bert_embeddings_train, overall_scores_train)
-        # evaluate_model(model, bert_embeddings_val, overall_scores_val)
-
-        # print(f"Bert Excited {k}")
-        # model = train_model(bert_embeddings_train, excitment_scores_train)
-        # evaluate_model(model, bert_embeddings_val, excitment_scores_val)
 
         # print(f"Sentiment Overall  {k}")
         # model = train_model(sentiment_overall_embeddings_train, overall_scores_train)
@@ -165,7 +194,71 @@ if __name__ == "__main__":
         # model = train_model(bsp_excitment_train, excitment_scores_train)
         # evaluate_model(model, bsp_excitment_val, excitment_scores_val)
 
-    # Test Overall
+    ##################Testing################################
+    # Unimodal Test Overall
+    (
+        _,
+        _,
+        _,
+        _,
+        _,
+        bs_overall_train,
+        _,
+        _,
+        _,
+        overall_scores_train,
+        _,
+    ) = get_set(train_set, 10)
+    (
+        _,
+        _,
+        _,
+        _,
+        _,
+        bs_overall_test,
+        _,
+        _,
+        _,
+        overall_scores_test,
+        _,
+    ) = get_set(test_set, 10)
+
+    model = train_model(bs_overall_train, overall_scores_train)
+    evaluate_model(model, bs_overall_test, overall_scores_test)
+
+    # Unimodal Test Excitment
+    (
+        _,
+        _,
+        sentiment_excitment_embeddings_train,
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+        excitment_scores_train,
+    ) = get_set(train_set, 15)
+    (
+        _,
+        _,
+        sentiment_excitment_embeddings_test,
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+        excitment_scores_test,
+    ) = get_set(test_set, 15)
+
+    model = train_model(sentiment_excitment_embeddings_train, excitment_scores_train)
+    evaluate_model(model, sentiment_excitment_embeddings_test, excitment_scores_test)
+
+    # Multimodal Test Overall
+    # Lucia, these are the models that you should do explainers on
     (
         _,
         _,
@@ -197,7 +290,9 @@ if __name__ == "__main__":
     model = train_model(bsp_overall_train, overall_scores_train)
     evaluate_model(model, bsp_overall_test, overall_scores_test)
 
-    # Test Excitment
+    # Lucia: Explainer code here
+
+    # MultiModal Test Excitment
     (
         _,
         _,
@@ -228,3 +323,5 @@ if __name__ == "__main__":
 
     model = train_model(bsp_excitment_train, excitment_scores_train)
     evaluate_model(model, bsp_excitment_test, excitment_scores_test)
+
+    # Lucia: Explainer code goes here
