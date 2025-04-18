@@ -13,7 +13,6 @@ outcome_df = pd.read_csv("scores.csv", names=["Participant", "Overall", "Excited
 # print(variance)
 
 
-
 def row_index_for_participant_id(participant_id):
     return transcript_df.loc[transcript_df["Participant"] == participant_id].index[0]
 
@@ -27,12 +26,23 @@ def full_bert_features(participant_id, summary):
     return row_embedding
 
 
-def all_features(participant_id, include_prosodic, summarize_bert_features, k):
+def all_features(
+    participant_id, include_prosodic, include_other, summarize_bert_features, k
+):
     bert_features = full_bert_features(participant_id, summarize_bert_features)
-    overall_interpretable_features = EmbeddingGetter.get_embeddings(
+    overall_sentiment_features = EmbeddingGetter.get_embeddings(
         participant_id, "sentiment", "overall", k, "."
     )
-    return torch.cat((bert_features, overall_interpretable_features), dim=0)
+    overall_prosodic_features = EmbeddingGetter.get_embeddings(
+        participant_id, "prosodic", "overall", k, "."
+    )
+    tensors_to_use = []
+    if include_other:
+        tensors_to_use.append(bert_features)
+        tensors_to_use.append(overall_sentiment_features)
+    if include_prosodic:
+        tensors_to_use.append(overall_prosodic_features)
+    return torch.cat(tensors_to_use, dim=0)
 
 
 # Gets the outcomes for all given participants as a tensor dataset whose first dimension
@@ -48,9 +58,21 @@ def outcomes_for_participants(all_participant_ids):
 
 # Gets the features for all given participants as a tensor dataset whose first dimension
 # is the index of the participant in all_participant_ids.
-def dataset_for_participants(all_participant_ids, include_prosodic, summarize_bert_features, k):
+def dataset_for_participants(
+    all_participant_ids,
+    include_prosodic,
+    include_other_features,
+    summarize_bert_features,
+    k,
+):
     all_features_all_participants = [
-        all_features(participant_id, include_prosodic, summarize_bert_features, k)
+        all_features(
+            participant_id,
+            include_prosodic,
+            include_other_features,
+            summarize_bert_features,
+            k,
+        )
         for participant_id in all_participant_ids
     ]
     return TensorDataset(

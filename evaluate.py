@@ -11,3 +11,4 @@ def evaluate(y_true, y_pred):
     pearson_r, p_value = pearsonr(y_true, y_pred)
     print(f"Mean Absolute Relative Error: {mean_relative_error:.4f}")
     print(f"Pearson: {pearson_r:.4f} (p-value: {p_value:.4g})")
+    return mean_relative_error, pearson_r

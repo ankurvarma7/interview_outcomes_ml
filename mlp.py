@@ -16,6 +16,8 @@ class MLPHyperParameters:
     def __init__(
         self,
         k,
+        use_prosodic,
+        use_other_features,
         summarize_bert_features,
         learning_rate,
         num_epochs,
@@ -23,6 +25,8 @@ class MLPHyperParameters:
         dropout_probability,
     ):
         self.k = k
+        self.use_prosodic = use_prosodic
+        self.use_other_features = use_other_features
         self.summarize_bert_features = summarize_bert_features
         self.hidden_layer_sizes = hidden_layer_sizes
         self.dropout_probability = dropout_probability
@@ -150,12 +154,20 @@ def evaluate_with_hyperparameters(hps: MLPHyperParameters):
         ]
         training_data_loader = torch.utils.data.DataLoader(
             features.dataset_for_participants(
-                training_participants, False, hps.summarize_bert_features, hps.k
+                training_participants,
+                hps.use_prosodic,
+                hps.use_other_features,
+                hps.summarize_bert_features,
+                hps.k,
             )
         )
         validation_data_loader = torch.utils.data.DataLoader(
             features.dataset_for_participants(
-                validation_participants, False, hps.summarize_bert_features, hps.k
+                validation_participants,
+                hps.use_prosodic,
+                hps.use_other_features,
+                hps.summarize_bert_features,
+                hps.k,
             )
         )
         input_size = next(iter(training_data_loader))[0].shape[1]
@@ -307,9 +319,12 @@ def compare_epochs():
         losses,
     )
 
-def tuned_hps(k):
+
+def tuned_hps(k, use_prosodic, use_other_features):
     return MLPHyperParameters(
         k=k,
+        use_prosodic=use_prosodic,
+        use_other_features=use_other_features,
         summarize_bert_features=True,
         learning_rate=3e-5,
         num_epochs=100,
@@ -331,12 +346,20 @@ def train_and_infer_against_test_set(hps):
 
     training_data_loader = torch.utils.data.DataLoader(
         features.dataset_for_participants(
-            training_participants, False, hps.summarize_bert_features, hps.k
+            training_participants,
+            hps.use_prosodic,
+            hps.use_other_features,
+            hps.summarize_bert_features,
+            hps.k,
         )
     )
     test_data_loader = torch.utils.data.DataLoader(
         features.dataset_for_participants(
-            test_participants, False, hps.summarize_bert_features, hps.k
+            test_participants,
+            hps.use_prosodic,
+            hps.use_other_features,
+            hps.summarize_bert_features,
+            hps.k,
         )
     )
     input_size = next(iter(training_data_loader))[0].shape[1]
@@ -356,7 +379,8 @@ def train_and_infer_against_test_set(hps):
         predictions = model(test_samples)
         labels_and_predictions.append((test_labels, predictions))
         # evaluate.evaluate(test_labels, predictions)
-    return labels_and_predictions
+    return model, labels_and_predictions
+
 
 def evaluate_test_inference(labels_and_preds):
     labels = [combined[0] for combined in labels_and_preds]
@@ -366,6 +390,9 @@ def evaluate_test_inference(labels_and_preds):
     overall_preds = [pred[0].detach().numpy()[0] for pred in preds]
     excitement_preds = [pred[0].detach().numpy()[1] for pred in preds]
     print("MLP overall evaluation: ")
-    evaluate.evaluate(np.array(overall_preds), np.array(overall_labels))
+    overall = evaluate.evaluate(np.array(overall_preds), np.array(overall_labels))
     print("MLP excitement evaluation: ")
-    evaluate.evaluate(np.array(excitement_preds), np.array(excitement_labels))
+    excitement = evaluate.evaluate(
+        np.array(excitement_preds), np.array(excitement_labels)
+    )
+    return (overall, excitement)
