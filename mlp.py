@@ -98,7 +98,9 @@ def train_and_report(
 ):
     train_losses_by_epoch = []
     validation_losses_by_epoch = []
-    optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=0)
+    optimizer = optim.Adam(
+        model.parameters(), lr=learning_rate, weight_decay=0
+    )
     loss_function = nn.MSELoss()
     start_time = time.time()
     for epoch in range(num_epochs):
@@ -335,7 +337,10 @@ def train_and_infer_against_test_set(hps):
     test_participants = test_train_sets.get_test_set()
     training_participants = [
         participant
-        for participant_set in [test_train_sets.get_train_set(i) for i in [0, 1, 2, 3]]
+        for participant_set in [
+            test_train_sets.get_train_set(i)
+            for i in [0, 1, 2, 3]
+        ]
         for participant in participant_set
     ]
 
