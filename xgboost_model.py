@@ -4,6 +4,8 @@ from EmbeddingGetter import get_embeddings
 from xgboost import XGBRegressor
 import numpy as np
 from evaluate import evaluate
+import shap
+import matplotlib.pyplot as plt
 
 
 def get_set(split, k=17):
@@ -290,7 +292,21 @@ if __name__ == "__main__":
     model = train_model(bsp_overall_train, overall_scores_train)
     evaluate_model(model, bsp_overall_test, overall_scores_test)
 
+    print(train_set[0])
     # Lucia: Explainer code here
+    feature_names_bert = ['']*256
+    for index, feature_name in enumerate(feature_names_bert):
+        feature_names_bert[index] = 'bert_' + str(index)
+    feature_names_sentiment_overall = ['interviewee_pos', 'interviewer_pos', 'interviewer_compound', 'overall_neu', 'interviewee_neg', 'interviewee_neu', 'interviewer_neg', 'interviewer_neu', 'interviewee_compound', 'other_neg']
+    feature_names_prosodic_overall = ['voice_steadiness', 'average_pause_length', 'pause_frequency', 'falling_intonation', 'speech_volume', 'volume_steadiness', 'volume_range', 'speaking_pace', 'voice_break_frequency', 'pitch_range']
+    feature_names_overall = feature_names_bert + feature_names_sentiment_overall + feature_names_prosodic_overall
+
+    # explain the model's predictions using SHAP
+    # (same syntax works for LightGBM, CatBoost, scikit-learn, transformers, Spark, etc.)
+    explainer_overall = shap.Explainer(model=model, feature_names=feature_names_overall)
+    shap_values_overall = explainer_overall(bsp_overall_train)
+    # visualize the first prediction's explanation
+    shap.plots.waterfall(shap_values_overall[0], show=True)
 
     # MultiModal Test Excitment
     (
@@ -325,3 +341,13 @@ if __name__ == "__main__":
     evaluate_model(model, bsp_excitment_test, excitment_scores_test)
 
     # Lucia: Explainer code goes here
+    feature_names_sentiment_excitement = ['overall_neg', 'interviewee_compound', 'interviewee_pos', 'interviewer_pos', 'overall_compound', 'overall_pos', 'interviewer_compound', 'interviewee_neu', 'overall_neu', 'interviewer_neg', 'interviewer_neu', 'interviewee_neg', 'other_neg', 'other_neu', 'other_pos']
+    feature_names_prosodic_excitement = ['speech_volume', 'volume_range', 'volume_variability', 'voice_steadiness', 'speaking_pace', 'average_pause_length', 'pause_frequency', 'pitch_expressiveness', 'volume_steadiness', 'falling_intonation', 'pitch_range', 'average_response_length', 'voice_break_frequency', 'average_pitch', 'rising_intonation']
+    feature_names_excitement = feature_names_bert + feature_names_sentiment_excitement + feature_names_prosodic_excitement
+
+    # explain the model's predictions using SHAP
+    # (same syntax works for LightGBM, CatBoost, scikit-learn, transformers, Spark, etc.)
+    explainer_excitment = shap.Explainer(model=model, feature_names=feature_names_excitement)
+    shap_values_excitment = explainer_excitment(bsp_excitment_train)
+    # visualize the first prediction's explanation
+    shap.plots.waterfall(shap_values_excitment[0])
